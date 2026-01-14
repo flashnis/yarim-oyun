@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Enis ❤️ Funda</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E❤️%3C/text%3E%3C/svg%3E" />
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Quicksand:wght@400;600&display=swap" rel="stylesheet">
     <style>
         * { -webkit-tap-highlight-color: transparent; touch-action: none; user-select: none; }
@@ -30,6 +31,10 @@
             background: #ff4d6d; border: none; color: white; border-radius: 50px; cursor: pointer;
             box-shadow: 0 4px 15px rgba(255, 77, 109, 0.4);
         }
+
+        .intro-text { 
+            margin-top: 20px; font-size: clamp(0.9rem, 3.5vw, 1.2rem); opacity: 0.9; line-height: 1.4; 
+        }
     </style>
 </head>
 <body>
@@ -37,7 +42,11 @@
 <div id="ui-layer">
     <div style="font-size: 3rem;">💖</div>
     <h1>Aşkımızın Hikayesi</h1>
-    <p style="opacity: 0.8; margin-top: 10px;">Enis'i hareket ettirmek için ekranın yanlarına dokun!</p>
+    <p class="intro-text">
+        Sevgili Funda,<br> 
+        Enis'in kalbi sana ulaşmak için çırpınıyor... <br>
+        Onu bekleyen bu esaretten kurtarmak için <b style="color:#ff4d6d;">kalpleri topla</b> ve aşkımıza yol aç!
+    </p>
     <button id="startBtn">Oyunu Başlat</button>
 </div>
 
@@ -74,6 +83,10 @@ const loveText = [
     "Sonsuza kadar seninle ❤️"
 ];
 
+// Final animasyonu için Funda karakteri
+const funda = { x: canvas.width * 0.75, y: 650, alpha: 0 };
+let hugAnimationTime = 0;
+
 startBtn.onclick = () => {
     uiLayer.style.display = "none";
     bgMusic.play().catch(() => console.log("Müzik dosyası yüklenemedi."));
@@ -103,13 +116,42 @@ canvas.addEventListener("touchend", () => { keys["Left"] = false; keys["Right"] 
 
 function drawEnis(x, y) {
     ctx.save();
-    ctx.fillStyle = "#111"; ctx.fillRect(x - 20, y - 40, 40, 40);
-    ctx.fillStyle = "#8d5524"; ctx.beginPath(); ctx.arc(x, y - 65, 25, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(x, y - 60, 20, 0.3, Math.PI - 0.3); ctx.fill();
-    ctx.fillStyle = "white"; ctx.beginPath(); ctx.arc(x - 8, y - 70, 5, 0, Math.PI * 2); ctx.arc(x + 8, y - 70, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#111"; ctx.fillRect(x - 20, y - 40, 40, 40); // Takım
+    ctx.fillStyle = "#8d5524"; ctx.beginPath(); ctx.arc(x, y - 65, 25, 0, Math.PI * 2); ctx.fill(); // Kafa
+    ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(x, y - 60, 20, 0.3, Math.PI - 0.3); ctx.fill(); // Sakal
+    ctx.fillStyle = "white"; ctx.beginPath(); ctx.arc(x - 8, y - 70, 5, 0, Math.PI * 2); ctx.arc(x + 8, y - 70, 5, 0, Math.PI * 2); ctx.fill(); // Göz
     ctx.fillStyle = "black"; ctx.beginPath(); ctx.arc(x - 8, y - 70, 2, 0, Math.PI * 2); ctx.arc(x + 8, y - 70, 2, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
 }
+
+// Funda karakterini çizme fonksiyonu (daha narin hatlar)
+function drawFunda(x, y, alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = "#ffcccc"; // Açık ten rengi
+    ctx.beginPath();
+    ctx.arc(x, y - 65, 25, 0, Math.PI * 2); // Kafa
+    ctx.fill();
+
+    ctx.fillStyle = "#d82b4a"; // Kırmızı elbise/kıyafet
+    ctx.fillRect(x - 20, y - 40, 40, 40);
+
+    ctx.fillStyle = "white"; // Gözler
+    ctx.beginPath(); ctx.arc(x - 8, y - 70, 5, 0, Math.PI * 2); ctx.arc(x + 8, y - 70, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "black";
+    ctx.beginPath(); ctx.arc(x - 8, y - 70, 2, 0, Math.PI * 2); ctx.arc(x + 8, y - 70, 2, 0, Math.PI * 2); ctx.fill();
+
+    // Uzun saç (isteğe bağlı)
+    ctx.fillStyle = "#6a0505";
+    ctx.beginPath();
+    ctx.arc(x, y - 65, 30, Math.PI * 0.8, Math.PI * 2.2); // Saçın üst kısmı
+    ctx.fillRect(x - 30, y - 65, 60, 30); // Saçın alt kısmı
+    ctx.fill();
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
+}
+
 
 function update() {
     if (state === "play") {
@@ -140,8 +182,10 @@ function update() {
             }
         });
 
-        // HEDEF 25 YAPILDI
-        if (collected >= 25) state = "final";
+        if (collected >= 25) { // Hedef 25 kalp
+            state = "final";
+            hugAnimationTime = Date.now(); // Animasyonun başlangıç zamanını kaydet
+        }
     }
 }
 
@@ -154,27 +198,50 @@ function draw() {
         hearts.forEach(h => ctx.fillText("❤️", h.x, h.y));
         meteors.forEach(m => ctx.fillText("🧿", m.x, m.y));
         ctx.fillStyle = "white"; ctx.font = "bold 30px Quicksand";
-        ctx.fillText(`Kalpler: ${collected}/25`, 40, 60);
+        ctx.fillText(`Kalpler: ${collected}/25`, 40, 60); // Sayaç da 25
         ctx.fillText(`Canlar: ${"❤️".repeat(lives)}`, 40, 110);
     }
 
     if (state === "final") {
+        // Kalp Yağmuru
         if(Math.random() < 0.2) particles.push({x: Math.random()*1280, y: -50, s: Math.random()*3+2});
         particles.forEach(p => { p.y += p.s; ctx.font = "30px Arial"; ctx.fillText("❤️", p.x, p.y); });
 
-        ctx.textAlign = "center"; ctx.fillStyle = "#fff"; ctx.font = "bold 40px 'Quicksand'";
-        loveText.forEach((t, i) => ctx.fillText(t, canvas.width/2, scrollY + i*110));
-        scrollY -= 0.6;
+        // Kucaklaşma Animasyonu (Önce Funda belirir, Enis ona doğru ilerler)
+        const animationDuration = 5000; // 5 saniye
+        const elapsedTime = Date.now() - hugAnimationTime;
 
-        if (scrollY < -800) {
-            ctx.font = "bold 100px 'Dancing Script'";
-            ctx.fillStyle = `rgba(255, 77, 109, ${(Math.sin(Date.now()/500)+1.2)/2})`;
-            ctx.fillText("FUNDA ❤️ ENİS", canvas.width/2, 360);
-            ctx.font = "120px Arial"; ctx.fillText("👩‍❤️‍👨", canvas.width/2, 550);
+        if (elapsedTime < animationDuration) {
+            // Funda yavaşça belirir
+            funda.alpha = Math.min(1, elapsedTime / 2000);
+            drawFunda(funda.x, funda.y, funda.alpha);
+
+            // Enis, Funda'ya doğru ilerler
+            const targetX = funda.x - 50; // Funda'nın biraz solunda
+            player.x += (targetX - player.x) * 0.05; // Yavaşça hedef x'e git
+            player.vx = 0; // Hareketi durdur
+            player.vy = 0; // Zıplamasını engelle
+            drawEnis(player.x, player.y);
+        } else {
+            // Animasyon bittikten sonra kucaklaşma pozisyonunda kalırlar
+            drawFunda(funda.x, funda.y, 1);
+            drawEnis(funda.x - 50, funda.y); // Enis Funda'ya sarılmış gibi
+
+            // Kayan Yazı ve İsimler
+            ctx.textAlign = "center"; ctx.fillStyle = "#fff"; ctx.font = "bold 40px 'Quicksand'";
+            loveText.forEach((t, i) => ctx.fillText(t, canvas.width/2, scrollY + i*110));
+            scrollY -= 0.6; // Romantik yavaş akış
+
+            if (scrollY < -800) {
+                ctx.font = "bold 100px 'Dancing Script'";
+                ctx.fillStyle = `rgba(255, 77, 109, ${(Math.sin(Date.now()/500)+1.2)/2})`;
+                ctx.fillText("FUNDA ❤️ ENİS", canvas.width/2, 360);
+                ctx.font = "120px Arial"; ctx.fillText("👩‍❤️‍👨", canvas.width/2, 550);
+            }
         }
     }
-    update();
-    requestAnimationFrame(draw);
+    requestAnimationFrame(draw); // update() artık burada çağrılmıyor, draw içinde çağrılır
+    update(); // Önce update, sonra draw
 }
 draw();
 </script>
