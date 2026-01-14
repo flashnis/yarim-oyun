@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Enis ❤️ Funda</title>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Quicksand:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        * { -webkit-tap-highlight-color: transparent; touch-action: none; user-select: none; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Quicksand', sans-serif; height: 100vh; display: flex; align-items: center; justify-content: center; }
+        
+        canvas { 
+            background: #000; 
+            border: 2px solid #ff4d6d; 
+            border-radius: 15px; 
+            width: 100%;
+            max-width: 960px;
+            aspect-ratio: 16 / 9;
+        }
+
+        #ui-layer {
+            position: fixed; inset: 0; background: radial-gradient(circle, #2d0617, #000);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100; color: white; text-align: center; padding: 20px;
+        }
+
+        h1 { font-family: 'Dancing Script', cursive; font-size: clamp(2rem, 8vw, 3.5rem); color: #ff4d6d; margin: 0; }
+        button {
+            margin-top: 25px; padding: 15px 45px; font-size: 1.5rem; font-family: 'Dancing Script';
+            background: #ff4d6d; border: none; color: white; border-radius: 50px; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 77, 109, 0.4);
+        }
+    </style>
+</head>
+<body>
+
+<div id="ui-layer">
+    <div style="font-size: 3rem;">💖</div>
+    <h1>Aşkımızın Hikayesi</h1>
+    <p style="opacity: 0.8; margin-top: 10px;">Enis'i hareket ettirmek için ekranın yanlarına dokun!</p>
+    <button id="startBtn">Oyunu Başlat</button>
+</div>
+
+<canvas id="game"></canvas>
+
+<audio id="bgMusic" loop preload="auto">
+    <source src="askim.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const uiLayer = document.getElementById("ui-layer");
+const startBtn = document.getElementById("startBtn");
+const bgMusic = document.getElementById("bgMusic");
+
+canvas.width = 1280;
+canvas.height = 720;
+
+let state = "wait";
+let hearts = [], meteors = [], particles = [];
+let collected = 0, lives = 3, scrollY = 800;
+let keys = {};
+
+const player = { x: 200, y: 650, vx: 0, vy: 0, speed: 7, jump: -18, grounded: false };
+
+const loveText = [
+    "Seni tanıdığım gün hayatım değişti.",
+    "Gülüşün bana umut oldu.",
+    "Sesin huzur.",
+    "Kalbin evim.",
+    "İyi ki varsın aşkım.",
+    "İyi ki benim karımsın.",
+    "Sonsuza kadar seninle ❤️"
+];
+
+startBtn.onclick = () => {
+    uiLayer.style.display = "none";
+    bgMusic.play().catch(() => console.log("Müzik dosyası yüklenemedi."));
+    state = "play";
+};
+
+function handleTouch(e) {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = (touch.clientX - rect.left) / rect.width * canvas.width;
+
+    if (player.grounded) {
+        player.vy = player.jump;
+        player.grounded = false;
+    }
+
+    if (x < canvas.width / 2) {
+        keys["Left"] = true; keys["Right"] = false;
+    } else {
+        keys["Right"] = true; keys["Left"] = false;
+    }
+}
+
+canvas.addEventListener("touchstart", handleTouch, {passive: false});
+canvas.addEventListener("touchend", () => { keys["Left"] = false; keys["Right"] = false; }, false);
+
+function drawEnis(x, y) {
+    ctx.save();
+    ctx.fillStyle = "#111"; ctx.fillRect(x - 20, y - 40, 40, 40);
+    ctx.fillStyle = "#8d5524"; ctx.beginPath(); ctx.arc(x, y - 65, 25, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(x, y - 60, 20, 0.3, Math.PI - 0.3); ctx.fill();
+    ctx.fillStyle = "white"; ctx.beginPath(); ctx.arc(x - 8, y - 70, 5, 0, Math.PI * 2); ctx.arc(x + 8, y - 70, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "black"; ctx.beginPath(); ctx.arc(x - 8, y - 70, 2, 0, Math.PI * 2); ctx.arc(x + 8, y - 70, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+}
+
+function update() {
+    if (state === "play") {
+        if (keys["Left"]) player.vx = -player.speed;
+        else if (keys["Right"]) player.vx = player.speed;
+        else player.vx *= 0.85;
+
+        player.vy += 0.8;
+        player.x += player.vx;
+        player.y += player.vy;
+
+        if (player.y > 650) { player.y = 650; player.vy = 0; player.grounded = true; }
+        if (player.x < 30) player.x = 30;
+        if (player.x > 1250) player.x = 1250;
+
+        if (Math.random() < 0.02) hearts.push({ x: Math.random() * 1200, y: -50, s: 3 });
+        hearts.forEach((h, i) => {
+            h.y += h.s;
+            if (Math.hypot(player.x - h.x, (player.y - 50) - h.y) < 60) { collected++; hearts.splice(i, 1); }
+        });
+
+        if (Math.random() < 0.015) meteors.push({ x: Math.random() * 1280, y: -50, s: 5 });
+        meteors.forEach((m, i) => {
+            m.y += m.s;
+            if (Math.hypot(player.x - m.x, (player.y - 50) - m.y) < 50) {
+                lives--; meteors.splice(i, 1);
+                if (lives <= 0) location.reload();
+            }
+        });
+
+        // HEDEF 25 YAPILDI
+        if (collected >= 25) state = "final";
+    }
+}
+
+function draw() {
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (state === "play") {
+        drawEnis(player.x, player.y);
+        ctx.font = "45px Arial";
+        hearts.forEach(h => ctx.fillText("❤️", h.x, h.y));
+        meteors.forEach(m => ctx.fillText("🧿", m.x, m.y));
+        ctx.fillStyle = "white"; ctx.font = "bold 30px Quicksand";
+        ctx.fillText(`Kalpler: ${collected}/25`, 40, 60);
+        ctx.fillText(`Canlar: ${"❤️".repeat(lives)}`, 40, 110);
+    }
+
+    if (state === "final") {
+        if(Math.random() < 0.2) particles.push({x: Math.random()*1280, y: -50, s: Math.random()*3+2});
+        particles.forEach(p => { p.y += p.s; ctx.font = "30px Arial"; ctx.fillText("❤️", p.x, p.y); });
+
+        ctx.textAlign = "center"; ctx.fillStyle = "#fff"; ctx.font = "bold 40px 'Quicksand'";
+        loveText.forEach((t, i) => ctx.fillText(t, canvas.width/2, scrollY + i*110));
+        scrollY -= 0.6;
+
+        if (scrollY < -800) {
+            ctx.font = "bold 100px 'Dancing Script'";
+            ctx.fillStyle = `rgba(255, 77, 109, ${(Math.sin(Date.now()/500)+1.2)/2})`;
+            ctx.fillText("FUNDA ❤️ ENİS", canvas.width/2, 360);
+            ctx.font = "120px Arial"; ctx.fillText("👩‍❤️‍👨", canvas.width/2, 550);
+        }
+    }
+    update();
+    requestAnimationFrame(draw);
+}
+draw();
+</script>
+</body>
+</html>
