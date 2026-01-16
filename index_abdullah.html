@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Abdullah ❤️ Melek</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E❤️%3C/text%3E%3C/svg%3E" />
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Quicksand:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        * { -webkit-tap-highlight-color: transparent; touch-action: none; user-select: none; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Quicksand', sans-serif; height: 100vh; display: flex; align-items: center; justify-content: center; }
+        canvas { background: #000; border: 2px solid #ff4d6d; border-radius: 15px; width: 100%; max-width: 960px; aspect-ratio: 16 / 9; }
+        
+        #ui-layer, #game-over-layer {
+            position: fixed; inset: 0; background: radial-gradient(circle, #2d0617, #000);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100; color: white; text-align: center; padding: 20px;
+        }
+        
+        h1 { font-family: 'Dancing Script', cursive; font-size: clamp(2rem, 8vw, 3.5rem); color: #ff4d6d; margin: 0; }
+        button {
+            margin-top: 25px; padding: 15px 45px; font-size: 1.5rem; font-family: 'Dancing Script';
+            background: #ff4d6d; border: none; color: white; border-radius: 50px; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 77, 109, 0.4); transition: 0.3s;
+        }
+        button:active { transform: scale(0.95); }
+        .intro-text { margin-top: 20px; font-size: clamp(0.9rem, 3.5vw, 1.2rem); opacity: 0.9; line-height: 1.4; max-width: 500px; }
+	.highlight {
+    color: #ff0000; /* Canlı Kırmızı */
+    font-weight: bold;
+    text-shadow: 0 0 10px rgba(255, 0, 0, 0.5); /* Hafif parlama efekti */
+}
+    </style>
+</head>
+<body>
+
+<div id="ui-layer">
+    <div style="font-size: 3rem;">💖</div>
+    <h1>Aşkımızın Hikayesi</h1>
+   <p class="intro-text">
+    Sevgili Melek,<br> 
+    Abdullah'ın kalbi sana ulaşmak için çırpınıyor... <br>
+    Onu bu esaretten kurtarmak için <span class="highlight">kalpleri topla</span> ve aşkımıza yol aç!
+</p>
+    <button onclick="startGame()">Oyunu Başlat</button>
+</div>
+
+<div id="game-over-layer" style="display: none;">
+    <div style="font-size: 3.5rem;">🧿</div>
+    <h1>Tüh be, nazar değdi!</h1>
+    <p class="intro-text">Olsun aşkım, Sen yanımda oldukça, hiçbir şey bizi durduramaz.<br>Hadi tekrar deneyelim.</p>
+    <button onclick="location.reload()">Tekrar Deneyelim ❤️</button>
+</div>
+
+<canvas id="game"></canvas>
+
+<audio id="bgMusic" loop preload="auto">
+    <source src="askim.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const uiLayer = document.getElementById("ui-layer");
+const gameOverLayer = document.getElementById("game-over-layer");
+const bgMusic = document.getElementById("bgMusic");
+
+canvas.width = 1280;
+canvas.height = 720;
+
+let state = "wait";
+let hearts = [], meteors = [], particles = [];
+let collected = 0, lives = 3, scrollY = 800;
+let keys = {};
+
+const player = { x: 200, y: 650, vx: 0, vy: 0, speed: 8, jump: -19, grounded: false };
+const funda = { x: canvas.width * 0.8, y: 650, alpha: 0 };
+let hugAnimationTime = 0;
+
+const loveText = [
+    "Seni tanıdığım gün hayatım değişti.",
+    "Gülüşün bana umut oldu.",
+    "Sesin huzur.",
+    "Kalbin evim.",
+    "İyi ki varsın aşkım.",
+    "İyi ki benim karımsın.",
+    "Sonsuza kadar seninle ❤️"
+];
+
+function startGame() {
+    uiLayer.style.display = "none";
+    bgMusic.play();
+    state = "play";
+}
+
+// --- KONTROL SİSTEMİ (HİBRİT) ---
+
+// 1. Klavye (PC)
+window.addEventListener("keydown", e => keys[e.code] = true);
+window.addEventListener("keyup", e => keys[e.code] = false);
+
+// 2. Dokunmatik (Mobil)
+function handleTouch(e) {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0];
+    const touchX = (touch.clientX - rect.left) / rect.width * canvas.width;
+
+    // Zıplama (Dokunulduğu an)
+    if (player.grounded) { player.vy = player.jump; player.grounded = false; }
+
+    // Hareket
+    if (touchX < canvas.width / 2) { keys["ArrowLeft"] = true; keys["ArrowRight"] = false; } 
+    else { keys["ArrowRight"] = true; keys["ArrowLeft"] = false; }
+}
+
+canvas.addEventListener("touchstart", handleTouch, {passive: false});
+canvas.addEventListener("touchend", () => { keys["ArrowLeft"] = false; keys["ArrowRight"] = false; }, false);
+
+// --- ÇİZİM VE MANTIK ---
+
+function drawEnis(x, y) {
+    ctx.save();
+    ctx.fillStyle = "#111"; ctx.fillRect(x - 25, y - 45, 50, 45); // Takım
+    ctx.fillStyle = "#8d5524"; ctx.beginPath(); ctx.arc(x, y - 75, 30, 0, Math.PI * 2); ctx.fill(); // Kafa
+    ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(x, y - 70, 25, 0.3, Math.PI - 0.3); ctx.fill(); // Sakal
+    ctx.fillStyle = "white"; ctx.beginPath(); ctx.arc(x - 10, y - 80, 6, 0, Math.PI * 2); ctx.arc(x + 10, y - 80, 6, 0, Math.PI * 2); ctx.fill(); 
+    ctx.fillStyle = "black"; ctx.beginPath(); ctx.arc(x - 10, y - 80, 3, 0, Math.PI * 2); ctx.arc(x + 10, y - 80, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+}
+
+function drawFunda(x, y, alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = "#ffcccc"; ctx.beginPath(); ctx.arc(x, y - 75, 30, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#d82b4a"; ctx.fillRect(x - 25, y - 45, 50, 45); // Elbise
+    ctx.fillStyle = "#6a0505"; ctx.beginPath(); ctx.arc(x, y - 75, 35, Math.PI * 0.8, Math.PI * 2.2); ctx.fillRect(x - 35, y - 75, 70, 40); ctx.fill();
+    ctx.restore();
+}
+
+function update() {
+    if (state === "play") {
+        // PC (Yön tuşları & WASD) veya Mobil (Keys objesi üzerinden)
+        if (keys["ArrowLeft"] || keys["KeyA"]) player.vx = -player.speed;
+        else if (keys["ArrowRight"] || keys["KeyD"]) player.vx = player.speed;
+        else player.vx *= 0.85;
+
+        if ((keys["ArrowUp"] || keys["KeyW"] || keys["Space"]) && player.grounded) {
+            player.vy = player.jump;
+            player.grounded = false;
+        }
+
+        player.vy += 0.85;
+        player.x += player.vx;
+        player.y += player.vy;
+
+        if (player.y > 650) { player.y = 650; player.vy = 0; player.grounded = true; }
+        if (player.x < 35) player.x = 35; if (player.x > 1245) player.x = 1245;
+
+        // Kalpler
+        if (Math.random() < 0.02) hearts.push({ x: Math.random() * 1200, y: -50, s: 3.5 });
+        hearts.forEach((h, i) => {
+            h.y += h.s;
+            if (Math.hypot(player.x - h.x, (player.y - 55) - h.y) < 65) { collected++; hearts.splice(i, 1); }
+        });
+
+        // Nazarlar
+        if (Math.random() < 0.018) meteors.push({ x: Math.random() * 1280, y: -50, s: 5.5 });
+        meteors.forEach((m, i) => {
+            m.y += m.s;
+            if (Math.hypot(player.x - m.x, (player.y - 55) - m.y) < 55) {
+                lives--; meteors.splice(i, 1);
+                if (lives <= 0) { state = "gameOver"; gameOverLayer.style.display = "flex"; }
+            }
+        });
+
+        if (collected >= 25) { state = "final"; hugAnimationTime = Date.now(); }
+    }
+}
+
+function draw() {
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (state === "play" || state === "gameOver") {
+        drawEnis(player.x, player.y);
+        ctx.font = "50px Arial"; hearts.forEach(h => ctx.fillText("❤️", h.x, h.y));
+        meteors.forEach(m => ctx.fillText("🧿", m.x, m.y));
+        ctx.fillStyle = "white"; ctx.font = "bold 32px Quicksand";
+        ctx.fillText(`Toplanan Kalpler: ${collected}/25`, 50, 70);
+        ctx.fillText(`Canlar: ${"❤️".repeat(Math.max(0, lives))}`, 50, 120);
+    }
+
+    if (state === "final") {
+        if(Math.random() < 0.25) particles.push({x: Math.random()*1280, y: -50, s: Math.random()*3+2});
+        particles.forEach(p => { p.y += p.s; ctx.font = "35px Arial"; ctx.fillText("❤️", p.x, p.y); });
+
+        const elapsedTime = Date.now() - hugAnimationTime;
+        if (elapsedTime < 5000) {
+            funda.alpha = Math.min(1, elapsedTime / 2000);
+            drawFunda(funda.x, funda.y, funda.alpha);
+            player.x += (funda.x - 65 - player.x) * 0.05; 
+            drawEnis(player.x, player.y);
+        } else {
+            drawFunda(funda.x, funda.y, 1); drawEnis(funda.x - 65, funda.y);
+            ctx.textAlign = "center"; ctx.fillStyle = "#fff"; ctx.font = "bold 45px 'Quicksand'";
+            loveText.forEach((t, i) => ctx.fillText(t, canvas.width/2, scrollY + i*120));
+            scrollY -= 0.65;
+            if (scrollY < -850) {
+                ctx.font = "bold 110px 'Dancing Script'";
+                ctx.fillStyle = `rgba(255, 77, 109, ${(Math.sin(Date.now()/500)+1.2)/2})`;
+                ctx.fillText("MELEK ❤️ ABDULLAH", canvas.width/2, 360);
+            }
+        }
+    }
+    update();
+    requestAnimationFrame(draw);
+}
+draw();
+</script>
+</body>
+</html>
